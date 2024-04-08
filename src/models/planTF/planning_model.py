@@ -75,7 +75,7 @@ class PlanningModel(TorchModuleWrapper):
             future_steps=future_steps,
             out_channels=4,
         )
-        self.agent_predictor = build_mlp(dim, [dim * 2, future_steps * 2], norm="ln")
+        self.agent_predictor = build_mlp(dim, [dim * 2, future_steps * 4], norm="ln")
 
         self.apply(self._init_weights)
 
@@ -123,7 +123,7 @@ class PlanningModel(TorchModuleWrapper):
         x = self.norm(x)
 
         trajectory, probability = self.trajectory_decoder(x[:, 0])
-        prediction = self.agent_predictor(x[:, 1:A]).view(bs, -1, self.future_steps, 2)
+        prediction = self.agent_predictor(x[:, 1:A]).view(bs, -1, self.future_steps, 4)
 
         out = {
             "trajectory": trajectory,

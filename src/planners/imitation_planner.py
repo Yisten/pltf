@@ -38,7 +38,7 @@ class ImitationPlanner(AbstractPlanner):
         planner: TorchModuleWrapper,
         planner_ckpt: str = None,
         replan_interval: int = 1,
-        use_gpu: bool = True,
+        use_gpu: bool = False,
     ) -> None:
         """
         Initializes the ML planner class.

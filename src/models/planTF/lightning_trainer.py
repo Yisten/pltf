@@ -21,7 +21,18 @@ from src.optim.warmup_cos_lr import WarmupCosLR
 
 logger = logging.getLogger(__name__)
 
+def get_r_and_center(lw,prediction,sample_num=5):
+    offset_ratio = torch.linspace(-1,1,sample_num,device=prediction.device)
+    
+    w = lw[...,0].unsqueeze(-1).unsqueeze(-1)
+    l = lw[...,1].unsqueeze(-1).unsqueeze(-1)
 
+    radius = w+0.5
+    offset = (l*prediction[...,2:]).unsqueeze(-2)
+    
+    center = prediction[...,:2].unsqueeze(-2) + offset*offset_ratio.unsqueeze(0)\
+        .unsqueeze(0).unsqueeze(0).unsqueeze(-1)
+    return center, radius
 class LightningTrainer(pl.LightningModule):
     def __init__(
         self,
@@ -76,18 +87,28 @@ class LightningTrainer(pl.LightningModule):
         targets = data["agent"]["target"]
         valid_mask = data["agent"]["valid_mask"][:, :, -trajectory.shape[-2] :]
 
-        ego_target_pos, ego_target_heading = targets[:, 0, :, :2], targets[:, 0, :, 2]
-        ego_target = torch.cat(
+        agent_lw = data['agent']['shape'][:,1:,:20].mean(-2)
+        agent_center, agent_radius =\
+            get_r_and_center(agent_lw.detach(),prediction.detach())#[batch,N,T,sample_num,2]
+        ego_lw = data['agent']['shape'][:,0,:20].mean(-2).unsqueeze(1)
+        ego_center, ego_radius =\
+            get_r_and_center(ego_lw,trajectory,sample_num=3)
+        
+        # ego_target_pos, ego_target_heading = targets[:, 0, :, :2], targets[:, 0, :, 2]
+        target_pos, target_heading = targets[...,:2],targets[...,2]
+        target = torch.cat(
             [
-                ego_target_pos,
+                target_pos,
                 torch.stack(
-                    [ego_target_heading.cos(), ego_target_heading.sin()], dim=-1
+                    [target_heading.cos(), target_heading.sin()], dim=-1
                 ),
             ],
             dim=-1,
         )
-        agent_target, agent_mask = targets[:, 1:], valid_mask[:, 1:]
+        ego_target, agent_target = target[:,0],target[:,1:]
 
+        agent_mask = valid_mask[:, 1:]
+        
         ade = torch.norm(trajectory[..., :2] - ego_target[:, None, :, :2], dim=-1)
         best_mode = torch.argmin(ade.sum(-1), dim=-1)
         best_traj = trajectory[torch.arange(trajectory.shape[0]), best_mode]
@@ -95,16 +116,36 @@ class LightningTrainer(pl.LightningModule):
         ego_cls_loss = F.cross_entropy(probability, best_mode.detach())
 
         agent_reg_loss = F.smooth_l1_loss(
-            prediction[agent_mask], agent_target[agent_mask][:, :2]
+            prediction[agent_mask], agent_target[agent_mask]
         )
+        lambda_t = 0.9
+        lambda_t_pow = torch.pow(
+            lambda_t,torch.arange(0,8,0.1)
+        ).unsqueeze(0).unsqueeze(0).unsqueeze(0).to(prediction.device)
 
-        loss = ego_reg_loss + ego_cls_loss + agent_reg_loss
+        if False:
+            D =3
+            dis = (res["trajectory"][...,:2].unsqueeze(1) -\
+                    res["prediction"].unsqueeze(2).detach())/D
+            collision_loss = (torch.exp(torch.max(-dis**2,-1)[0])*lambda_t_pow).mean()
+            
+        else:
+            D = (agent_radius+ego_radius).unsqueeze(-1)
+            dis = (agent_center.unsqueeze(2).unsqueeze(5) -\
+                  ego_center.unsqueeze(1).unsqueeze(4)
+                  ).norm(2,-1).flatten(-2,-1)/D
+            lambda_t_pow = lambda_t_pow.unsqueeze(-1)
+            
+        collision_loss = (torch.exp(F.relu(-dis**2+1)-1)*lambda_t_pow).mean()
+        collision_weight = 2 if self.current_epoch> self.warmup_epochs else 0
+        loss = ego_reg_loss + ego_cls_loss + agent_reg_loss + collision_weight*collision_loss
 
         return {
             "loss": loss,
             "reg_loss": ego_reg_loss,
             "cls_loss": ego_cls_loss,
             "prediction_loss": agent_reg_loss,
+            "collision_loss": collision_loss,
         }
 
     def _compute_metrics(self, output, data, prefix) -> Dict[str, torch.Tensor]:

@@ -23,7 +23,7 @@ trainer:
     accelerator: gpu  # distribution method
     precision: 32  # floating point precision
     # amp_level: O2  # AMP optimization level
-    # num_nodes: 1  # Number of nodes used for training
+    num_nodes: 1  # Number of nodes used for training
 
     # auto_scale_batch_size: false
     # auto_lr_find: false  # tunes LR before beginning training
