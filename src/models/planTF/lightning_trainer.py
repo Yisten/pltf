@@ -22,12 +22,12 @@ from src.optim.warmup_cos_lr import WarmupCosLR
 logger = logging.getLogger(__name__)
 
 def get_r_and_center(lw,prediction,sample_num=5):
-    offset_ratio = torch.linspace(-1,1,sample_num,device=prediction.device)
+    offset_ratio = torch.linspace(-0.7,0.7,sample_num,device=prediction.device)
     
     w = lw[...,0].unsqueeze(-1).unsqueeze(-1)
     l = lw[...,1].unsqueeze(-1).unsqueeze(-1)
 
-    radius = 0.5 * w
+    radius = 0.5 * w+0.05
     offset = (0.5 * l * prediction[...,2:]).unsqueeze(-2)
     
     center = prediction[...,:2].unsqueeze(-2) + offset*offset_ratio.unsqueeze(0)\
@@ -120,7 +120,7 @@ class LightningTrainer(pl.LightningModule):
         )
         lambda_t = 0.9
         lambda_t_pow = torch.pow(
-            lambda_t,torch.arange(0,8,0.1)
+            lambda_t,torch.abs(torch.arange(0,8,0.1)-1.5)
         ).unsqueeze(0).unsqueeze(0).unsqueeze(0).to(prediction.device)
 
         if False:
