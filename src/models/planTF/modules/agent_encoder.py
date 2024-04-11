@@ -124,7 +124,7 @@ class StateAttentionEncoder(nn.Module):
                 torch.rand((x_embed.shape[0], self.state_channel - 3), device=x.device)
                 < self.state_dropout
             )
-            key_padding_mask = torch.concat([visible_tokens, dropout_tokens], dim=1)
+            key_padding_mask = torch.cat([visible_tokens, dropout_tokens], dim=1)
         else:
             key_padding_mask = None
 

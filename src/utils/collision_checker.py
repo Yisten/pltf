@@ -89,7 +89,7 @@ class CollisionChecker:
             bs, N, 1, 1
         )  # [bs, N, 4, 2]
 
-        all_corners = torch.concat(
+        all_corners = torch.cat(
             [object_corners, ego_corners], dim=-2
         )  # [bs, N, 8, 2]
 

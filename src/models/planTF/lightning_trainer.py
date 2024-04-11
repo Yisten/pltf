@@ -27,8 +27,8 @@ def get_r_and_center(lw,prediction,sample_num=5):
     w = lw[...,0].unsqueeze(-1).unsqueeze(-1)
     l = lw[...,1].unsqueeze(-1).unsqueeze(-1)
 
-    radius = w+0.5
-    offset = (l*prediction[...,2:]).unsqueeze(-2)
+    radius = 0.5 * w
+    offset = (0.5 * l * prediction[...,2:]).unsqueeze(-2)
     
     center = prediction[...,:2].unsqueeze(-2) + offset*offset_ratio.unsqueeze(0)\
         .unsqueeze(0).unsqueeze(0).unsqueeze(-1)

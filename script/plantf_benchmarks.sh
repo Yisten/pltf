@@ -1,8 +1,8 @@
 cwd=$(pwd)
 CKPT_ROOT="$cwd/checkpoints"
 PLANNER="planTF"
-CKP_NAME="planTF0403"
-SPLIT="val14_1"
+CKP_NAME="last"
+SPLIT="val14_2"
 # CHALLENGES="closed_loop_nonreactive_agents closed_loop_reactive_agents open_loop_boxes"
 CHALLENGES="closed_loop_nonreactive_agents"
 for challenge in $CHALLENGES; do

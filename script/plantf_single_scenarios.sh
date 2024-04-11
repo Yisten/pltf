@@ -1,6 +1,6 @@
 cwd=$(pwd)
 CKPT_ROOT="$cwd/checkpoints"
-PLANNER="planTF0403"
+PLANNER="last"
 
 python -m debugpy --listen localhost:5678 --wait-for-client\
     run_simulation.py \
